@@ -126,6 +126,8 @@
         ExecStart=$NODE_BIN $PROD_DEPLOY_PATH/.output/server/index.mjs
         Restart=always
         RestartSec=5
+        TimeoutStopSec=10
+        KillMode=mixed
 
         [Install]
         WantedBy=default.target
