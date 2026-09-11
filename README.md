@@ -7,7 +7,8 @@ Stack:
 - Agent-Native standalone Chat template
 - React Router / React / TypeScript
 - Tailwind + shadcn/Radix-compatible component structure from the Agent-Native template
-- Existing GoJoLo Supabase project for future auth/data integration
+- Dozer-local Postgres dedicated to this app (Agent-Native `DATABASE_URL`)
+- Optional future GoJoLo Supabase integration (not the app DB)
 - Buddy + Dozer CloudPanel deployment
 
 ## Current scaffold status
@@ -49,9 +50,10 @@ Required for production:
 
 - `APP_URL=https://dashboard.gojolo.io`
 - `BETTER_AUTH_SECRET` — generate with `openssl rand -hex 32`
-- `DATABASE_URL` — persistent Postgres connection string; intended to use the existing GoJoLo Supabase project Postgres URL
+- `DATABASE_URL` — Dozer-local Postgres connection string dedicated to gojolo-dashboard (Buddy/server secret only)
+- optional: `AGENT_NATIVE_DB_SCHEMA` — defaults to `agent_native`; runtime writes a `search_path`-scoped `DATABASE_URL`
 
-Existing GoJoLo Supabase public browser config for future Jolo module work:
+Optional future GoJoLo Supabase public browser config (integration only; not the Agent-Native app DB):
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -77,11 +79,11 @@ Server target created on Dozer:
 Buddy deploys pushes to `main` using root `buddy.yml`:
 
 1. Enable pnpm with Corepack.
-2. Require production env vars.
+2. Validate `DATABASE_URL`, `BETTER_AUTH_SECRET`, and `APP_URL` (Dozer-local Postgres is not reachable from the Buddy BUILD container).
 3. Run `pnpm install --frozen-lockfile`.
 4. Run `pnpm typecheck` and `pnpm build`.
 5. Transfer `.output/` to Dozer.
-6. Write runtime `.env` from Buddy variables.
+6. On the Dozer host via SSH: `psql` `CREATE SCHEMA IF NOT EXISTS` for `AGENT_NATIVE_DB_SCHEMA`, then write a runtime `.env` with a `search_path`-scoped `DATABASE_URL`.
 7. Restart the CloudPanel user service and health-check the local port and public URL.
 
 ### Unresolved external setup
@@ -89,7 +91,7 @@ Buddy deploys pushes to `main` using root `buddy.yml`:
 Not provisioned by this scaffold; must be supplied outside the repo before production is live:
 
 - **Cloudflare token** — still required for DNS / Cloudflare setup for `dashboard.gojolo.io` (not stored in this repo)
-- **`DATABASE_URL`** — still required as a Buddy/server secret; use the existing GoJoLo Supabase Postgres connection string (`buddy.yml` fails closed without it)
+- **`DATABASE_URL`** — still required as a Buddy/server secret; use the Dozer-local Postgres database dedicated to this app (`buddy.yml` fails closed without it)
 - **`BETTER_AUTH_SECRET`** — generate and set as a Buddy project variable (`openssl rand -hex 32`)
 
 Required Buddy project variables:
@@ -100,8 +102,9 @@ Required Buddy project variables:
 - `PROD_APP_PORT=3005`
 - `PROD_SERVICE=gojolo-dashboard-production.service`
 - `APP_URL=https://dashboard.gojolo.io`
-- `DATABASE_URL=<existing GoJoLo Supabase Postgres connection string>`
+- `DATABASE_URL=<Dozer-local Postgres connection string for gojolo-dashboard>`
 - `BETTER_AUTH_SECRET=<generated secret>`
+- optional: `AGENT_NATIVE_DB_SCHEMA` (default `agent_native`)
 - optional/future: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 
 Workspace/global Buddy assets used by `buddy.yml`:

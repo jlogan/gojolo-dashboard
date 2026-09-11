@@ -85,6 +85,9 @@
         test -n "$NODE_BIN" || { echo "ERROR: node binary not found for $PROD_SERVICE"; exit 1; }
 
         AGENT_NATIVE_DB_SCHEMA="${AGENT_NATIVE_DB_SCHEMA:-agent_native}"
+        [[ "$AGENT_NATIVE_DB_SCHEMA" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || { echo "ERROR: AGENT_NATIVE_DB_SCHEMA must be a simple PostgreSQL identifier"; exit 1; }
+        command -v psql >/dev/null 2>&1 || { echo "ERROR: psql is not installed on the production server"; exit 1; }
+        psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA IF NOT EXISTS \"$AGENT_NATIVE_DB_SCHEMA\";"
         SCOPED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" AGENT_NATIVE_DB_SCHEMA="$AGENT_NATIVE_DB_SCHEMA" "$NODE_BIN" <<'NODE'
         const rawDatabaseUrl = process.env.DATABASE_URL;
         const schema = process.env.AGENT_NATIVE_DB_SCHEMA || "agent_native";

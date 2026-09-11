@@ -1,6 +1,6 @@
 # gojolo-dashboard — Build Spec (v0)
 
-Learning / prototype app for Jolo v2 at https://dashboard.gojolo.io. Keep scope small: validate Agent-Native + shadcn-style UI primitives + the existing GoJoLo Supabase project before expanding product surface.
+Learning / prototype app for Jolo v2 at https://dashboard.gojolo.io. Keep scope small: validate Agent-Native + shadcn-style UI primitives + Dozer-local Postgres as the app database before expanding product surface.
 
 ## Goal
 
@@ -8,9 +8,10 @@ Ship a minimal Agent-Native app that:
 
 1. Starts from the official Agent-Native Chat template.
 2. Uses the template’s Tailwind/shadcn/Radix-friendly component structure.
-3. Integrates the existing GoJoLo Supabase project for future auth/data modules.
+3. Uses a Dozer-local Postgres database dedicated to this app as the only Agent-Native `DATABASE_URL`.
 4. Treats the agent surface as a first-class interface, with a lightweight evaluation loop for agent behavior.
 5. Deploys to Dozer CloudPanel via Buddy on pushes to `main`.
+6. Keeps GoJoLo Supabase as an optional future integration only (not the app DB).
 
 ## Non-goals (this prototype)
 
@@ -26,18 +27,21 @@ Ship a minimal Agent-Native app that:
 - UI: Tailwind + Agent-Native template components built on shadcn/Radix-style primitives
 - Language: TypeScript
 - Runtime: Node/Nitro (`.output/server/index.mjs`)
-- Data/auth target: existing GoJoLo Supabase project, introduced incrementally
+- App database: Dozer-local Postgres dedicated to gojolo-dashboard (`DATABASE_URL` + optional `AGENT_NATIVE_DB_SCHEMA`)
+- Optional future data/auth integration: existing GoJoLo Supabase project (not Agent-Native’s DB)
 - Deploy: Buddy → Dozer CloudPanel → `dashboard.gojolo.io`
 
-## Supabase guardrails
+## Database & Supabase guardrails
 
-1. No service-role key in frontend source, `.env.example`, Buddy public vars, or agent prompts.
-2. No schema/RLS/migration changes from this repo without explicit approval.
-3. Reuse the existing GoJoLo Supabase project for future auth/data milestones.
-4. Add `https://dashboard.gojolo.io` and the local dev URL to Supabase Auth redirect allowlists when Supabase Auth work starts.
-5. Assume RLS is the tenancy boundary; do not rely on client-only filtering for security.
+1. Agent-Native production `DATABASE_URL` is the Dozer-local Postgres database for this app only; keep the value in Buddy/server env, never in source.
+2. Optional `AGENT_NATIVE_DB_SCHEMA` (default `agent_native`); deploy creates the schema on Dozer via `psql` and writes a `search_path`-scoped runtime URL. Do not run DB prepare from the Buddy BUILD container (Dozer-local Postgres is unreachable there).
+3. No Supabase service-role key in frontend source, `.env.example`, Buddy public vars, or agent prompts.
+4. No Supabase schema/RLS/migration changes from this repo without explicit approval.
+5. Supabase (if used later) is an optional integration for future auth/data milestones — not a replacement for Agent-Native’s Postgres.
+6. Add `https://dashboard.gojolo.io` and the local dev URL to Supabase Auth redirect allowlists when Supabase Auth work starts.
+7. Assume RLS is the tenancy boundary for any future Supabase data; do not rely on client-only filtering for security.
 
-Note: Agent-Native itself also needs a persistent Postgres `DATABASE_URL` and `BETTER_AUTH_SECRET` for production framework auth/conversations. The intended production `DATABASE_URL` is the existing GoJoLo Supabase Postgres connection string, but that value must stay in Buddy/server env only.
+Note: Agent-Native also needs `BETTER_AUTH_SECRET` for production framework auth/conversations. That value must stay in Buddy/server env only.
 
 ## Agent evaluation approach
 
@@ -45,7 +49,7 @@ Use the repo to evaluate coding agents with repeatable prompts:
 
 1. Keep milestone prompts in source control once we start agent comparisons.
 2. Run Cursor/Codex on separate branches with the same prompt.
-3. Score each run on spec adherence, compile/build, Supabase/RLS safety, diff quality, and time-to-green.
+3. Score each run on spec adherence, compile/build, DB/Supabase safety, diff quality, and time-to-green.
 4. Do not merge agent work just because the agent reports success; verify locally with `pnpm typecheck` and `pnpm build`.
 5. Prefer vertical slices over broad rewrites.
 
@@ -56,7 +60,7 @@ Use the repo to evaluate coding agents with repeatable prompts:
 Status: complete.
 
 - Official Agent-Native Chat template generated.
-- `@supabase/supabase-js` added for future GoJoLo Supabase integration.
+- `@supabase/supabase-js` added for optional future GoJoLo Supabase integration.
 - `app/lib/supabase.ts` added with public anon-key-only client setup.
 - `pnpm typecheck` passes.
 - `pnpm build` passes and emits `.output/server/index.mjs` + `.output/public`.
@@ -69,7 +73,7 @@ Status: complete.
 - `main` push triggers Buddy.
 - Public URL returns the Agent-Native app.
 
-Unresolved external setup (not in this scaffold): Cloudflare token for `dashboard.gojolo.io` DNS/Cloudflare, and production `DATABASE_URL` (GoJoLo Supabase Postgres) as a Buddy/server secret.
+Unresolved external setup (not in this scaffold): Cloudflare token for `dashboard.gojolo.io` DNS/Cloudflare, and production `DATABASE_URL` (Dozer-local Postgres for this app) as a Buddy/server secret.
 
 ### M2 — Auth exploration
 
@@ -80,7 +84,7 @@ Unresolved external setup (not in this scaffold): Cloudflare token for `dashboar
 
 ### M3 — First Jolo data slice
 
-- Read-only module against the existing Supabase project.
+- Optional read-only module against the existing Supabase project (still not the Agent-Native app DB).
 - No schema changes.
 - Verify RLS behavior with a real user session.
 
