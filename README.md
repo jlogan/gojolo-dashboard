@@ -8,7 +8,6 @@ Stack:
 - React Router / React / TypeScript
 - Tailwind + shadcn/Radix-compatible component structure from the Agent-Native template
 - Dozer-local Postgres dedicated to this app (Agent-Native `DATABASE_URL`)
-- Optional future GoJoLo Supabase integration (not the app DB)
 - Buddy + Dozer CloudPanel deployment
 
 ## Current scaffold status
@@ -53,15 +52,9 @@ Required for production:
 - `DATABASE_URL` — Dozer-local Postgres connection string dedicated to gojolo-dashboard (Buddy/server secret only)
 - optional: `AGENT_NATIVE_DB_SCHEMA` — defaults to `agent_native`; runtime writes a `search_path`-scoped `DATABASE_URL`
 
-Optional future GoJoLo Supabase public browser config (integration only; not the Agent-Native app DB):
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
 Guardrails:
 
-- Never put the Supabase service-role key in frontend env or source.
-- Do not change Supabase schema/RLS from this repo without explicit approval.
+- Dozer-local Postgres is the only app database; keep `DATABASE_URL` and secrets in Buddy/server env, never in source.
 - Jolo v1 remains production/source-of-truth while this repo is a v2 learning/prototype surface.
 
 ## Deployment
@@ -105,7 +98,6 @@ Required Buddy project variables:
 - `DATABASE_URL=<Dozer-local Postgres connection string for gojolo-dashboard>`
 - `BETTER_AUTH_SECRET=<generated secret>`
 - optional: `AGENT_NATIVE_DB_SCHEMA` (default `agent_native`)
-- optional/future: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 
 Workspace/global Buddy assets used by `buddy.yml`:
 
