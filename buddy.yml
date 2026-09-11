@@ -1,3 +1,17 @@
+# Buddy.works pipeline-as-code — https://buddy.works/docs/yaml
+#
+# gojolo-dashboard production deploy (Agent-Native Node/Nitro on Dozer CloudPanel)
+# - pushes to `main` build with pnpm, transfer `.output/` to Dozer, write runtime
+#   `.env`, restart the CloudPanel user service, then health-check.
+#
+# Unresolved external setup (not provisioned by this scaffold):
+#   - Cloudflare token for DNS / Cloudflare setup of dashboard.gojolo.io
+#   - DATABASE_URL Buddy/server secret (existing GoJoLo Supabase Postgres URL)
+#   - BETTER_AUTH_SECRET Buddy/server secret (openssl rand -hex 32)
+#
+# Workspace/global Buddy assets:
+#   DOZER_HOST, BROBOT_BA
+
 - pipeline: "Deploy To Production"
   name: "Deploy To Production"
   events:

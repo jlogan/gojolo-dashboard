@@ -69,6 +69,8 @@ Status: complete.
 - `main` push triggers Buddy.
 - Public URL returns the Agent-Native app.
 
+Unresolved external setup (not in this scaffold): Cloudflare token for `dashboard.gojolo.io` DNS/Cloudflare, and production `DATABASE_URL` (GoJoLo Supabase Postgres) as a Buddy/server secret.
+
 ### M2 — Auth exploration
 
 - Decide whether Jolo v2 uses Supabase Auth directly, Agent-Native/Better Auth, or a bridge pattern.

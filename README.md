@@ -34,16 +34,16 @@ Agent-Native is not a static-only Vite app. It builds a Node/Nitro server, so pr
 ```bash
 corepack enable
 corepack prepare pnpm@12.4.1 --activate
-cp .env.example .env.local
+cp .env.example .env
 pnpm install
 pnpm dev
 ```
 
-Open the local URL printed by Agent-Native, usually port `8080` or the next available port.
+Local Agent-Native uses PGlite by default, so `DATABASE_URL` is optional for `pnpm dev`. Open the local URL printed by Agent-Native, usually port `8080` or the next available port.
 
 ## Environment variables
 
-Do not commit `.env` or `.env.local`.
+Do not commit `.env` or `.env.local`. Start from the tracked `.env.example` only.
 
 Required for production:
 
@@ -83,6 +83,14 @@ Buddy deploys pushes to `main` using root `buddy.yml`:
 5. Transfer `.output/` to Dozer.
 6. Write runtime `.env` from Buddy variables.
 7. Restart the CloudPanel user service and health-check the local port and public URL.
+
+### Unresolved external setup
+
+Not provisioned by this scaffold; must be supplied outside the repo before production is live:
+
+- **Cloudflare token** — still required for DNS / Cloudflare setup for `dashboard.gojolo.io` (not stored in this repo)
+- **`DATABASE_URL`** — still required as a Buddy/server secret; use the existing GoJoLo Supabase Postgres connection string (`buddy.yml` fails closed without it)
+- **`BETTER_AUTH_SECRET`** — generate and set as a Buddy project variable (`openssl rand -hex 32`)
 
 Required Buddy project variables:
 
