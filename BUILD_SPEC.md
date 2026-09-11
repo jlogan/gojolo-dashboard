@@ -68,19 +68,30 @@ Status: complete.
 
 Unresolved external setup (not in this scaffold): Cloudflare token for `dashboard.gojolo.io` DNS/Cloudflare, and production `DATABASE_URL` (Dozer-local Postgres for this app) as a Buddy/server secret.
 
-### M2 — Auth exploration
+### M2 — Org onboarding (Agent-Native)
 
-- Decide how Jolo v2 auth maps onto Agent-Native/Better Auth.
-- Log in without privileged keys in the browser.
-- Session/user state visible in the UI.
-- Protected route or gated agent entry.
+Status: in progress / this pass.
 
-### M3 — First Jolo data slice
+- Use Agent-Native auth + native organization/team primitives (no custom Jolo org system).
+- After signup/login, users without an active org are guided via `RequireActiveOrg`
+  (shell stays usable); Settings → Team (`TeamPage`) remains reachable for first-run create/join.
+- Thin `create-organization` action delegates to framework `createOrganization` for chat/agent parity.
+- Log in without privileged keys in the browser; session/user/org state visible via template UI (`OrgSwitcher`, settings).
 
-- First read-only module against app data in Dozer-local Postgres.
-- Verify tenancy/access checks with a real user session.
+### M3 — Module-agent workflow
+
+Status: in progress / this pass (docs + process); first product module TBD.
+
+- Agent guidance rewritten for Gojolo v2 (`AGENTS.md`, `docs/AGENT_BUILD_GUIDE.md`,
+  `docs/REFERENCE_MAP.md`, `docs/LEGACY_EDGE_FUNCTIONS.md`, `docs/MODULE_PROMPT_TEMPLATE.md`).
+- Cursor/Clips-style agents build modules from a branch + filled prompt template with
+  fixed verification (`pnpm typecheck`, `pnpm build`, prefer `pnpm agent-native:doctor`).
+- Legacy `gojolo-application` and Supabase Edge Functions treated as reference/workflow
+  specs only; recreate as Agent-Native actions/routes/jobs when a module needs them.
+- Next product slice: first vertical module against Dozer-local Postgres with org-scoped
+  tenancy/access checks (separate milestone work after this setup pass).
 
 ### M4 — First action/chat workflow
 
-- One safe read-only Jolo action callable from UI and agent chat.
+- One safe read-only Jolo domain action callable from UI and agent chat (beyond org create).
 - Golden prompts + manual scorecard.

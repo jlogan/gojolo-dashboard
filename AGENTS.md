@@ -1,61 +1,92 @@
-# Chat — Agent Guide
+# Gojolo Dashboard (v2) — Agent Guide
 
-Chat is the minimal chat-first agent-native app. The public root is a marketing
-surface; the authenticated chat app starts at `/home`. Actions carry the real
-capabilities, and screens exist only where a workflow needs durable UI around
-the conversation.
+This repo is **Gojolo v2** (`dashboard.gojolo.io`): an Agent-Native Chat-template
+app. Coding agents (Cursor, Builder.io Clips-style) should treat this file plus
+`docs/` as the source of truth for how to build modules here.
 
-## Skills
+## Product decisions (do not reopen)
 
-The default app skill surface is intentionally small. Promotion, learning,
-translation, changelog, provider, and release workflows are optional; enable
-the matching skill only when this app actually uses that workflow. The
-`docs-search` action reads the version-matched framework docs bundled with
-  `@agent-native/core`; `source-search` reads core and first-party template
-  implementations. Prefer both over memory when package APIs, actions, or agent
-  surfaces are involved.
+- **Orgs/teams:** use Agent-Native’s native organization system
+  (`RequireActiveOrg`, `TeamPage`, `createOrganization`, `OrgSwitcher`). Do
+  **not** add custom Jolo org tables or copy the old app’s org model.
+- **UI:** shadcn / Radix / Tailwind from the Agent-Native template for
+  Jolo-owned screens. Prefer existing `@/components/ui/*` adapters.
+- **Database:** Dozer-local Postgres via `DATABASE_URL` only. Do **not**
+  reintroduce Supabase client/runtime vars as the app DB.
+- **Legacy app:** `/Users/jaylogan/Projects/gojolo-application` is
+  **reference-only**. Never couple this repo to it at runtime. Never copy
+  secrets, `.env`, service-role keys, or customer data.
+- **Legacy Edge Functions:** inventory in `docs/LEGACY_EDGE_FUNCTIONS.md`.
+  Recreate as Agent-Native actions / server routes / jobs only when a module
+  needs them — do not blind-copy Supabase functions.
 
-## Core Rules
+## First-run org gate
+
+After signup/login, users without an active org hit `RequireActiveOrg` on
+authenticated routes (shell + sidebar stay usable). Settings remains reachable
+so first-run org creation can also go through **Settings → Team** (`TeamPage`).
+`/team` redirects to `/settings/organization`.
+
+## Skills / framework lookup
+
+Prefer version-matched package docs over memory:
+
+```bash
+pnpm action framework-search --pattern "defineAction"
+pnpm action docs-search --query "organizations"
+pnpm action source-search --query "RequireActiveOrg"
+```
+
+Before shared workspace UI, read `agent-native-toolkit`. Before adapting shared
+UI, read `customizing-agent-native`. Before new features, follow
+`adding-a-feature` (UI + action + instructions + application state).
+
+## Core rules
 
 - UI feedback: target 100 ms, never exceed 400 ms; acknowledge before network work.
-- Follow the root framework contract: data in SQL, actions first, application
-  state for navigation/selection, and shared agent chat for AI work.
-- Store large file/blob payloads in configured file/blob storage, not SQL: no
-  base64, `data:` URLs, images, video/audio, PDFs, ZIPs, screenshots,
-  thumbnails, or replay chunks in app tables, `application_state`, `settings`,
-  or `resources`; persist URLs, ids, or handles instead.
-- Never hardcode API keys, tokens, webhook URLs, signing secrets, private
-  Builder/internal data, customer data, or credential-looking literals. Use
-  secrets/OAuth/runtime configuration and obvious placeholders in examples.
+- Data in SQL (Dozer Postgres), actions first, application state for
+  navigation/selection, shared agent chat for AI work.
+- Store large file/blob payloads in configured file/blob storage, not SQL.
+- Never hardcode API keys, tokens, webhook URLs, signing secrets, Builder /
+  internal data, customer data, or credential-looking literals.
 - For external integrations, inspect the workspace/provider connection catalog
-  first. Reuse an existing connection and its scoped credential resolver; only
-  use app-local vault/OAuth/settings primitives when no reusable connection
-  exists. Keep custom setup UI provider-specific and never duplicate storage.
-- Keep actions deterministic and focused. Research, analysis, generation,
-  recommendation, and synthesis start in the AgentSidebar and let the agent
-  orchestrate its tools; follow-ups stay in the same thread rather than moving
-  the user to a second freeform prompt box.
-- Never fabricate. If an action fails or data is missing, say so and recover
-  instead of inventing a result or claiming success.
-- Verify a write before reporting it done — re-read the row or the screen.
-- Use `view-screen` or application state when the active page/selection is
-  unclear.
+  first; reuse scoped credential resolvers.
+- Keep actions deterministic. Research / generation / synthesis starts in the
+  AgentSidebar; follow-ups stay in the same thread.
+- Never fabricate. Verify writes by re-reading. Use `view-screen` when context
+  is unclear.
+- Keep `server/plugins/config.ts` brand-aligned (`app.name`, optional
+  `app.logoUrl`).
 
-For a custom app, keep `server/plugins/config.ts` aligned with the product
-brand. Its `app.name` is used in transactional emails, and its optional
-`app.logoUrl` can point to an absolute HTTPS logo URL.
+## Key actions
 
-## Application State
+| Action | Purpose |
+| --- | --- |
+| `view-screen` | Read current navigation / UI context (call first) |
+| `navigate` | Move the UI to a view or path |
+| `hello` | Smoke-test greeting |
+| `create-organization` | Create an Agent-Native org for the signed-in user; returns `{ id, name }` |
 
-- `navigation` describes the current view and selected entity ids. The default
-  chat view is `chat` at `/home`; `/` is the public SSR marketing page.
-- `navigate` moves the UI when the app supports it.
-- `view-screen` is the first tool to call when the user's visible context
-  matters.
+## Application state
 
-## Source Changes
+- `navigation` — current view and selected entity ids. Default chat view is
+  `chat` at `/home`; `/` is the public SSR marketing page.
+- `navigate` — agent-driven navigation command.
+- `view-screen` — first tool when visible context matters.
 
-Before building common workspace or agent UI, read `agent-native-toolkit`; read
-`customizing-agent-native` before adapting shared UI.
+## Building modules
 
-- Guarded verification: run `pnpm agent-native:doctor`; fix findings before done.
+Read `docs/AGENT_BUILD_GUIDE.md`, `docs/REFERENCE_MAP.md`,
+`docs/MODULE_PROMPT_TEMPLATE.md`, and `BUILD_SPEC.md` before starting a module
+slice. Use a dedicated branch and the prompt template.
+
+## Verification
+
+```bash
+pnpm typecheck
+pnpm build
+pnpm agent-native:doctor
+```
+
+Fix doctor findings before considering work done. Do not commit or push unless
+Jay explicitly asks.

@@ -7,6 +7,7 @@ import {
   useAgentChatHomeHandoffLinks,
 } from "@agent-native/core/client/agent-chat";
 import { useT } from "@agent-native/core/client/i18n";
+import { RequireActiveOrg } from "@agent-native/core/client/org";
 import { HeaderActionsProvider } from "@agent-native/toolkit/app-shell";
 import { IconMenu2 } from "@tabler/icons-react";
 import { useState, useEffect } from "react";
@@ -99,10 +100,19 @@ export function Layout({ children }: LayoutProps) {
   }, [sidebarCollapsed]);
 
   const ownsToolbar = routeOwnsToolbar(location.pathname);
+  // Settings stays reachable without an active org so first-run users can open
+  // Settings > Team (TeamPage) or agent settings while completing org setup.
+  const isSettingsRoute = location.pathname.startsWith("/settings");
   function openAskAgentFullscreen() {
     focusAgentChat();
     navigateWithAgentChatViewTransition(navigate, "/home");
   }
+
+  const pageContent = isSettingsRoute ? (
+    children
+  ) : (
+    <RequireActiveOrg>{children}</RequireActiveOrg>
+  );
 
   const contentFrame = (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
@@ -134,7 +144,7 @@ export function Layout({ children }: LayoutProps) {
         <Header onOpenMobileSidebar={() => setMobileSidebarOpen(true)} />
       )}
       <main className="agent-native-app-main min-w-0 flex-1 overflow-y-auto overscroll-contain">
-        {children}
+        {pageContent}
       </main>
     </div>
   );
