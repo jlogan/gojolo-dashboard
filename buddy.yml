@@ -32,6 +32,7 @@
         - 'test -n "$BETTER_AUTH_SECRET" || { echo "ERROR: set BETTER_AUTH_SECRET as a Buddy project variable."; exit 1; }'
         - 'test -n "$APP_URL" || { echo "ERROR: set APP_URL=https://dashboard.gojolo.io as a Buddy project variable."; exit 1; }'
         - "pnpm install --frozen-lockfile"
+        - 'SCHEMA="${AGENT_NATIVE_DB_SCHEMA:-agent_native}"; DATABASE_URL="$(AGENT_NATIVE_DB_SCHEMA="$SCHEMA" node scripts/prepare-agent-native-db.mjs)"; export DATABASE_URL; echo "Agent-Native DB schema prepared: $SCHEMA"'
         - "pnpm typecheck"
         - "pnpm build"
         - 'test -f .output/server/index.mjs && test -d .output/public || { echo "ERROR: expected .output/server/index.mjs and .output/public after build"; exit 1; }'
@@ -72,6 +73,17 @@
         : "${APP_URL:?APP_URL Buddy variable is required}"
         : "${PROD_SERVICE:?PROD_SERVICE Buddy variable is required}"
         PORT="${PROD_APP_PORT:-3005}"
+        AGENT_NATIVE_DB_SCHEMA="${AGENT_NATIVE_DB_SCHEMA:-agent_native}"
+        SCOPED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" AGENT_NATIVE_DB_SCHEMA="$AGENT_NATIVE_DB_SCHEMA" node <<'NODE'
+        const rawDatabaseUrl = process.env.DATABASE_URL;
+        const schema = process.env.AGENT_NATIVE_DB_SCHEMA || "agent_native";
+        if (!rawDatabaseUrl) process.exit(1);
+        if (!/^[a-z_][a-z0-9_]*$/i.test(schema)) process.exit(1);
+        const scoped = new URL(rawDatabaseUrl);
+        scoped.searchParams.set("options", `--search_path=${schema},public`);
+        process.stdout.write(scoped.toString());
+        NODE
+        )"
 
         umask 077
         cat > .env <<ENV_EOF
@@ -81,7 +93,8 @@
         NITRO_HOST=127.0.0.1
         NITRO_PORT=${PORT}
         APP_URL=${APP_URL}
-        DATABASE_URL=${DATABASE_URL}
+        AGENT_NATIVE_DB_SCHEMA=${AGENT_NATIVE_DB_SCHEMA}
+        DATABASE_URL=${SCOPED_DATABASE_URL}
         BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
         VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
@@ -89,7 +102,34 @@
         chmod 600 .env
 
         export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        NODE_BIN="$(command -v node || true)"
+        if [ -z "$NODE_BIN" ]; then
+          NODE_BIN="$(find "$NVM_DIR/versions/node" -path '*/bin/node' -type f 2>/dev/null | sort -V | tail -1 || true)"
+        fi
+        test -n "$NODE_BIN" || { echo "ERROR: node binary not found for $PROD_SERVICE"; exit 1; }
+
+        mkdir -p "$HOME/.config/systemd/user"
+        cat > "$HOME/.config/systemd/user/$PROD_SERVICE" <<UNIT_EOF
+        [Unit]
+        Description=GoJoLo Dashboard production app
+        After=network.target
+
+        [Service]
+        Type=simple
+        WorkingDirectory=$PROD_DEPLOY_PATH
+        EnvironmentFile=$PROD_DEPLOY_PATH/.env
+        ExecStart=$NODE_BIN $PROD_DEPLOY_PATH/.output/server/index.mjs
+        Restart=always
+        RestartSec=5
+
+        [Install]
+        WantedBy=default.target
+        UNIT_EOF
+
         systemctl --user daemon-reload
+        systemctl --user enable "$PROD_SERVICE" >/dev/null
         systemctl --user restart "$PROD_SERVICE"
 
         for i in $(seq 1 45); do
