@@ -6,8 +6,11 @@
 #
 # Unresolved external setup (not provisioned by this scaffold):
 #   - Cloudflare token for DNS / Cloudflare setup of dashboard.gojolo.io
-#   - DATABASE_URL Buddy/server secret (existing GoJoLo Supabase Postgres URL)
+#   - DATABASE_URL Buddy/server secret (Dozer-local Postgres dedicated to this app)
 #   - BETTER_AUTH_SECRET Buddy/server secret (openssl rand -hex 32)
+#
+# Dozer-local Postgres is not reachable from the Buddy BUILD container. Validate
+# secrets and build there; CREATE SCHEMA + search_path scoping happen on SSH.
 #
 # Workspace/global Buddy assets:
 #   DOZER_HOST, BROBOT_BA
@@ -32,7 +35,6 @@
         - 'test -n "$BETTER_AUTH_SECRET" || { echo "ERROR: set BETTER_AUTH_SECRET as a Buddy project variable."; exit 1; }'
         - 'test -n "$APP_URL" || { echo "ERROR: set APP_URL=https://dashboard.gojolo.io as a Buddy project variable."; exit 1; }'
         - "pnpm install --frozen-lockfile"
-        - 'SCHEMA="${AGENT_NATIVE_DB_SCHEMA:-agent_native}"; DATABASE_URL="$(AGENT_NATIVE_DB_SCHEMA="$SCHEMA" node scripts/prepare-agent-native-db.mjs)"; export DATABASE_URL; echo "Agent-Native DB schema prepared: $SCHEMA"'
         - "pnpm typecheck"
         - "pnpm build"
         - 'test -f .output/server/index.mjs && test -d .output/public || { echo "ERROR: expected .output/server/index.mjs and .output/public after build"; exit 1; }'
@@ -73,8 +75,17 @@
         : "${APP_URL:?APP_URL Buddy variable is required}"
         : "${PROD_SERVICE:?PROD_SERVICE Buddy variable is required}"
         PORT="${PROD_APP_PORT:-3005}"
+        export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        NODE_BIN="$(command -v node || true)"
+        if [ -z "$NODE_BIN" ]; then
+          NODE_BIN="$(find "$NVM_DIR/versions/node" -path '*/bin/node' -type f 2>/dev/null | sort -V | tail -1 || true)"
+        fi
+        test -n "$NODE_BIN" || { echo "ERROR: node binary not found for $PROD_SERVICE"; exit 1; }
+
         AGENT_NATIVE_DB_SCHEMA="${AGENT_NATIVE_DB_SCHEMA:-agent_native}"
-        SCOPED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" AGENT_NATIVE_DB_SCHEMA="$AGENT_NATIVE_DB_SCHEMA" node <<'NODE'
+        SCOPED_DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" AGENT_NATIVE_DB_SCHEMA="$AGENT_NATIVE_DB_SCHEMA" "$NODE_BIN" <<'NODE'
         const rawDatabaseUrl = process.env.DATABASE_URL;
         const schema = process.env.AGENT_NATIVE_DB_SCHEMA || "agent_native";
         if (!rawDatabaseUrl) process.exit(1);
@@ -100,15 +111,6 @@
         VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
         ENV_EOF
         chmod 600 .env
-
-        export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-        export NVM_DIR="$HOME/.nvm"
-        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-        NODE_BIN="$(command -v node || true)"
-        if [ -z "$NODE_BIN" ]; then
-          NODE_BIN="$(find "$NVM_DIR/versions/node" -path '*/bin/node' -type f 2>/dev/null | sort -V | tail -1 || true)"
-        fi
-        test -n "$NODE_BIN" || { echo "ERROR: node binary not found for $PROD_SERVICE"; exit 1; }
 
         mkdir -p "$HOME/.config/systemd/user"
         cat > "$HOME/.config/systemd/user/$PROD_SERVICE" <<UNIT_EOF
